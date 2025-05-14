@@ -1,6 +1,9 @@
-
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 export const createClient = async (cookieStore: ReturnType<typeof cookies>) => {
     const cookies = await cookieStore;

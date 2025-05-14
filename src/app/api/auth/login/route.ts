@@ -1,43 +1,60 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '../../../../utils/server';
 import { cookies } from 'next/headers';
 
+export async function POST(req: NextRequest) {
+  console.log('Register endpoint hit');
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Vérifier si la requête est de type POST
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method Not Allowed' });
-  }
-
-  const { email, password } = req.body;
+  const body = await req.json();
+  const { email, password } = body;
 
   if (!email || !password) {
-    return res.status(400).json({ message: 'Email and password are required' });
+    return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
   }
 
-  // Récupérer le cookie store et créer le client Supabase
   const cookieStore = cookies();
   const supabase = await createClient(cookieStore);
 
-  // Essayer de se connecter avec l'email et le mot de passe
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    return res.status(400).json({ message: error.message });
+    return NextResponse.json({ message: error.message }, { status: 400 });
   }
 
   const { user, session } = data;
 
-    if (!user || !session) {
-        return res.status(400).json({ message: 'Login failed' });
-    }
+  if (!user || !session) {
+    return NextResponse.json({ message: 'Login failed' }, { status: 400 });
+  }
 
-  // Si la connexion réussit, mettre à jour les cookies avec les tokens d'authentification
-  res.setHeader('Set-Cookie', [
-    `sb-access-token=${session.access_token}; Path=/; HttpOnly; Secure; SameSite=Strict`,
-    `sb-refresh-token=${session.refresh_token}; Path=/; HttpOnly; Secure; SameSite=Strict`,
-  ]);
+  const response = NextResponse.json(
+    { message: 'User logged in successfully', user },
+    { status: 200 }
+  );
 
-  // Retourner les informations de session utilisateur
-  return res.status(200).json({ message: 'User logged in successfully', user: data.user });
+  response.headers.set('Access-Control-Allow-Origin', 'http://localhost:3000'); // ou '*' pour tout autoriser
+  response.headers.set('Access-Control-Allow-Credentials', 'true');  // Permet d'envoyer les cookies
+
+  // Ajout des cookies HTTPOnly
+  response.headers.set(
+    'Set-Cookie',
+    [
+      `sb-access-token=${session.access_token}; Path=/; HttpOnly; Secure; SameSite=Strict`,
+      `sb-refresh-token=${session.refresh_token}; Path=/; HttpOnly; Secure; SameSite=Strict`,
+    ].join(', ')
+  );
+
+  return response;
+}
+
+export function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': 'http://localhost:3000',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Credentials': 'true',
+    },
+  });
 }

@@ -1,6 +1,8 @@
-
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 export const createClient = (request: NextRequest) => {
   // Create an unmodified response
